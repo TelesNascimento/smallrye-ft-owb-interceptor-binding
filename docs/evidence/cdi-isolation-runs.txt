@@ -1,0 +1,8 @@
+cdi-isolation reproducer (SmallRye-free), JDK 21, against Maven Central jars.
+
+--- mvn clean test -Pweld ---
+[ISO] direct=1  transitive via Class=1  transitive via AnnotatedType=1  => PASS
+--- mvn clean test -Powb -Dversion.owb=4.0.3 -Dcdi.api.version=4.0.1 ---
+[ISO] direct=1  transitive via Class=1  transitive via AnnotatedType=1  => PASS
+--- mvn clean test -Powb -Dversion.owb=4.1.0 -Dcdi.api.version=4.1.0 ---
+[ISO] direct=1  transitive via Class=0  transitive via AnnotatedType=0  => FAIL (the regression)

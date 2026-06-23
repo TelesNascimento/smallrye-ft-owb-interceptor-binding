@@ -1,0 +1,7 @@
+Why no commit is named.
+
+- Regressed between released jars: Maven Central OWB 4.0.3 applies it; 4.1.0 does not.
+- The suspected commit was reverted on 4.1.0 and rebuilt: the bug persisted -> not the cause.
+- The release tags do not reproduce the released-jar behavior, so a source bisect is unreliable.
+=> Release-range regression with a runnable reproducer; the exact commit is left for the OpenWebBeans
+   maintainers to bisect against their own build.

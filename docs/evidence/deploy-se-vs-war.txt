@@ -1,0 +1,12 @@
+Deploy layer (NOT a SmallRye bug, NOT a compliance defect).
+
+Library jar = extension (via services) + one @Dependent bean + NO beans.xml. getBeans(LibBean):
+                                        OWB SE      OWB in a WAR (TomEE 10)
+  extension + no beans.xml              1 (scanned) 0 (excluded)   <- the SmallRye shape
+  no extension + no beans.xml           1 (scanned) 0 (excluded)
+  extension + beans.xml=all (control)   -           1 (scanned)
+
+OWB SE scans no-beans.xml library jars, double-registering the extension's beans -> Ambiguous.
+A real WAR does not scan the extension+no-beans.xml jar (conformant per CDI 4.1). So the over-scan
+is an OWB SE classpath behavior, not a compliance defect; SmallRye is correct (addAnnotatedType, no
+beans.xml). The first UnsatisfiedResolutionException was a CDI API 4.0 vs 4.1 mismatch (red herring).
