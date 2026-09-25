@@ -1,0 +1,2083 @@
+diff --git a/webbeans-impl/src/main/java/org/apache/webbeans/annotation/AnnotationManager.java b/webbeans-impl/src/main/java/org/apache/webbeans/annotation/AnnotationManager.java
+index ec668a837..0208dcf10 100644
+--- a/webbeans-impl/src/main/java/org/apache/webbeans/annotation/AnnotationManager.java
++++ b/webbeans-impl/src/main/java/org/apache/webbeans/annotation/AnnotationManager.java
+@@ -146,7 +146,7 @@ public final class AnnotationManager
+         for (Annotation ann : anns)
+         {
+             Annotation oldBinding = bindings.get(ann.annotationType());
+-            if (oldBinding != null && !AnnotationUtil.isCdiAnnotationEqual(oldBinding, ann))
++            if (oldBinding != null && !webBeansContext.getInterceptorsManager().isInterceptorBindingEqual(oldBinding, ann))
+             {
+                 throw new WebBeansConfigurationException("Illegal interceptor binding: annotation of type "
+                         + ann.annotationType().getName()
+@@ -177,7 +177,7 @@ public final class AnnotationManager
+                     }
+                     else
+                     {
+-                        if (annotationsFromSteretypes.containsKey(ann.annotationType()) && !AnnotationUtil.isCdiAnnotationEqual(oldBinding, ann))
++                        if (annotationsFromSteretypes.containsKey(ann.annotationType()) && !webBeansContext.getInterceptorsManager().isInterceptorBindingEqual(oldBinding, ann))
+                         {
+                             throw new WebBeansConfigurationException("Illegal interceptor binding: annotation of type "
+                                     + ann.annotationType().getName()
+@@ -238,9 +238,12 @@ public final class AnnotationManager
+     {
+         Asserts.assertNotNull(anns, Asserts.PARAM_NAME_ANNOTATION);
+         List<Annotation> interAnns = new ArrayList<>();
++        List<Annotation> worklist = new ArrayList<>(Arrays.asList(anns));
++        Set<Class<? extends Annotation>> expanded = new HashSet<>();
+ 
+-        for (Annotation ann : anns)
++        for (int index = 0; index < worklist.size(); index++)
+         {
++            Annotation ann = worklist.get(index);
+             if (ann.annotationType().getName().startsWith("java.lang."))
+             {
+                 continue;
+@@ -250,9 +253,10 @@ public final class AnnotationManager
+                 interAnns.add(ann);
+ 
+                 //check for transitive
+-                Annotation[] transitives = getInterceptorBindingMetaAnnotations(ann.annotationType().getDeclaredAnnotations());
+-
+-                Collections.addAll(interAnns, transitives);
++                if (expanded.add(ann.annotationType()))
++                {
++                    worklist.addAll(webBeansContext.getInterceptorsManager().getInterceptorBindingDefinition(ann.annotationType()));
++                }
+             }
+         }
+ 
+diff --git a/webbeans-impl/src/main/java/org/apache/webbeans/container/BeanManagerImpl.java b/webbeans-impl/src/main/java/org/apache/webbeans/container/BeanManagerImpl.java
+index 017946842..5563ae6f1 100644
+--- a/webbeans-impl/src/main/java/org/apache/webbeans/container/BeanManagerImpl.java
++++ b/webbeans-impl/src/main/java/org/apache/webbeans/container/BeanManagerImpl.java
+@@ -59,7 +59,6 @@ import jakarta.enterprise.inject.Vetoed;
+ import jakarta.enterprise.inject.spi.*;
+ import jakarta.inject.Named;
+ import jakarta.inject.Scope;
+-import jakarta.interceptor.InterceptorBinding;
+ import javax.naming.NamingException;
+ import javax.naming.Reference;
+ import javax.naming.Referenceable;
+@@ -544,7 +543,8 @@ public class BeanManagerImpl implements BeanManager, Referenceable
+     {
+         webBeansContext.getAnnotationManager().checkInterceptorResolverParams(interceptorBindings);
+ 
+-        return webBeansContext.getInterceptorsManager().resolveInterceptors(type, interceptorBindings);
++        Annotation[] expanded = webBeansContext.getAnnotationManager().getInterceptorBindingMetaAnnotations(interceptorBindings);
++        return webBeansContext.getInterceptorsManager().resolveInterceptors(type, expanded);
+     }
+ 
+ 
+@@ -717,15 +717,11 @@ public class BeanManagerImpl implements BeanManager, Referenceable
+     @Override
+     public Set<Annotation> getInterceptorBindingDefinition(Class<? extends Annotation> binding)
+     {
+-        Annotation[] annotations = binding.getDeclaredAnnotations();
+-        Set<Annotation> set = new HashSet<>();
+-
+-        if(binding.isAnnotationPresent(InterceptorBinding.class))
++        if (!isInterceptorBinding(binding))
+         {
+-            Collections.addAll(set, annotations);
++            throw new IllegalArgumentException(binding.getName() + " is not an interceptor binding");
+         }
+-
+-        return set;
++        return webBeansContext.getInterceptorsManager().getInterceptorBindingDefinition(binding);
+     }
+ 
+     @Override
+diff --git a/webbeans-impl/src/main/java/org/apache/webbeans/intercept/InterceptorResolutionService.java b/webbeans-impl/src/main/java/org/apache/webbeans/intercept/InterceptorResolutionService.java
+index 450bd11d9..2634947c9 100644
+--- a/webbeans-impl/src/main/java/org/apache/webbeans/intercept/InterceptorResolutionService.java
++++ b/webbeans-impl/src/main/java/org/apache/webbeans/intercept/InterceptorResolutionService.java
+@@ -126,7 +126,7 @@ public class InterceptorResolutionService
+         List<Interceptor<?>> classLevelInterceptors;
+         if (classInterceptorBindings.size() > 0)
+         {
+-            classLevelInterceptors = webBeansContext.getBeanManagerImpl().resolveInterceptors(InterceptionType.AROUND_INVOKE, AnnotationUtil.asArray(classInterceptorBindings));
++            classLevelInterceptors = webBeansContext.getInterceptorsManager().resolveInterceptors(InterceptionType.AROUND_INVOKE, AnnotationUtil.asArray(classInterceptorBindings));
+             allUsedCdiInterceptors.addAll(classLevelInterceptors);
+         }
+         else
+@@ -291,15 +291,13 @@ public class InterceptorResolutionService
+                                                                  Set<Interceptor<?>> allUsedCdiInterceptors,
+                                                                  Set<Interceptor<?>> allUsedConstructorCdiInterceptors)
+     {
+-        BeanManagerImpl beanManagerImpl = webBeansContext.getBeanManagerImpl();
+-
+         Annotation[] interceptorBindings = null;
+         if (classInterceptorBindings.size() > 0)
+         {
+             interceptorBindings = AnnotationUtil.asArray(classInterceptorBindings);
+ 
+-            allUsedCdiInterceptors.addAll(beanManagerImpl.resolveInterceptors(InterceptionType.POST_CONSTRUCT, interceptorBindings));
+-            allUsedCdiInterceptors.addAll(beanManagerImpl.resolveInterceptors(InterceptionType.PRE_DESTROY, interceptorBindings));
++            allUsedCdiInterceptors.addAll(webBeansContext.getInterceptorsManager().resolveInterceptors(InterceptionType.POST_CONSTRUCT, interceptorBindings));
++            allUsedCdiInterceptors.addAll(webBeansContext.getInterceptorsManager().resolveInterceptors(InterceptionType.PRE_DESTROY, interceptorBindings));
+         }
+ 
+         Set<Annotation> aroundConstructBindings = null;
+@@ -334,13 +332,14 @@ public class InterceptorResolutionService
+             if (!constructorAnnot.isEmpty())
+             {
+                 aroundConstructBindings = Collections.unmodifiableSet(new LinkedHashSet<>(constructorAnnot));
+-                allUsedConstructorCdiInterceptors.addAll(beanManagerImpl.resolveInterceptors(InterceptionType.AROUND_CONSTRUCT, AnnotationUtil.asArray(constructorAnnot)));
++                allUsedConstructorCdiInterceptors.addAll(webBeansContext.getInterceptorsManager()
++                        .resolveInterceptors(InterceptionType.AROUND_CONSTRUCT, AnnotationUtil.asArray(constructorAnnot)));
+             }
+         }
+         else if (interceptorBindings != null)
+         {
+             aroundConstructBindings = Collections.unmodifiableSet(new LinkedHashSet<>(classInterceptorBindings));
+-            allUsedConstructorCdiInterceptors.addAll(beanManagerImpl.resolveInterceptors(InterceptionType.AROUND_CONSTRUCT, interceptorBindings));
++            allUsedConstructorCdiInterceptors.addAll(webBeansContext.getInterceptorsManager().resolveInterceptors(InterceptionType.AROUND_CONSTRUCT, interceptorBindings));
+         }
+         allUsedCdiInterceptors.addAll(allUsedConstructorCdiInterceptors);
+         return aroundConstructBindings;
+@@ -664,7 +663,7 @@ public class InterceptorResolutionService
+         Set<Annotation> resolvedCdiBindings;
+         if (hasMethodInterceptors || classLevelInterceptors == null)
+         {
+-            methodInterceptors = webBeansContext.getBeanManagerImpl().resolveInterceptors(interceptionType, AnnotationUtil.asArray(cummulatedInterceptorBindings.values()));
++            methodInterceptors = webBeansContext.getInterceptorsManager().resolveInterceptors(interceptionType, AnnotationUtil.asArray(cummulatedInterceptorBindings.values()));
+             allUsedCdiInterceptors.addAll(methodInterceptors);
+             resolvedCdiBindings = new LinkedHashSet<>(cummulatedInterceptorBindings.values());
+         }
+diff --git a/webbeans-impl/src/main/java/org/apache/webbeans/intercept/InterceptorsManager.java b/webbeans-impl/src/main/java/org/apache/webbeans/intercept/InterceptorsManager.java
+index a9102f21a..0a99cbeff 100644
+--- a/webbeans-impl/src/main/java/org/apache/webbeans/intercept/InterceptorsManager.java
++++ b/webbeans-impl/src/main/java/org/apache/webbeans/intercept/InterceptorsManager.java
+@@ -20,7 +20,7 @@ package org.apache.webbeans.intercept;
+ 
+ import java.lang.annotation.Annotation;
+ import java.util.ArrayList;
+-import java.util.Collection;
++import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.HashSet;
+@@ -34,7 +34,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
+ import jakarta.enterprise.inject.spi.AnnotatedType;
+ import jakarta.enterprise.inject.spi.InterceptionType;
+ import jakarta.enterprise.inject.spi.Interceptor;
++import jakarta.interceptor.InterceptorBinding;
+ 
++import org.apache.webbeans.annotation.EmptyAnnotationLiteral;
+ import org.apache.webbeans.component.BeanAttributesImpl;
+ import org.apache.webbeans.component.creation.BeanAttributesBuilder;
+ import org.apache.webbeans.component.creation.EjbInterceptorBeanBuilder;
+@@ -76,8 +78,14 @@ public class InterceptorsManager
+      */
+     private Map<Class<? extends Annotation>, Set<Annotation>> additionalInterceptorBindingTypes
+             = new HashMap<>();
+-    private final Collection<AnnotatedType<?>> additionalInterceptorBindingTypesAnnotatedTypes
+-            = new ArrayList<>();
++    private final Map<Class<?>, AnnotatedType<?>> additionalInterceptorBindingTypesAnnotatedTypes
++            = new HashMap<>();
++
++    private static final InterceptorBinding INTERCEPTOR_BINDING = new InterceptorBindingLiteral();
++
++    private static class InterceptorBindingLiteral extends EmptyAnnotationLiteral<InterceptorBinding> implements InterceptorBinding
++    {
++    }
+ 
+     private final PriorityClasses priorityInterceptors = new PriorityClasses();
+ 
+@@ -95,6 +103,7 @@ public class InterceptorsManager
+     public void clear()
+     {
+         additionalInterceptorBindingTypes.clear();
++        additionalInterceptorBindingTypesAnnotatedTypes.clear();
+         additionalInterceptorClasses.clear();
+         configuredInterceptorClasses.clear();
+         cdiInterceptors.clear();
+@@ -228,7 +237,7 @@ public class InterceptorsManager
+ 
+             // first check AT since it can override some methods (@NonBinding)
+             boolean found = false;
+-            for (AnnotatedType<?> at : additionalInterceptorBindingTypesAnnotatedTypes)
++            for (AnnotatedType<?> at : additionalInterceptorBindingTypesAnnotatedTypes.values())
+             {
+                 if (interceptorBinding.annotationType().equals(at.getJavaClass()))
+                 {
+@@ -306,7 +315,7 @@ public class InterceptorsManager
+ 
+     public void addInterceptorBindingType(AnnotatedType<? extends Annotation> annotatedType)
+     {
+-        additionalInterceptorBindingTypesAnnotatedTypes.add(annotatedType);
++        additionalInterceptorBindingTypesAnnotatedTypes.putIfAbsent(annotatedType.getJavaClass(), annotatedType);
+     }
+ 
+     public void addInterceptorBindingType(Class<? extends Annotation> bindingType, Annotation... inheritsArray)
+@@ -317,19 +326,34 @@ public class InterceptorsManager
+ 
+     public boolean hasInterceptorBindingType(Class<? extends Annotation> bindingType)
+     {
+-        boolean contains = additionalInterceptorBindingTypes.keySet().contains(bindingType);
+-        if (contains)
++        return additionalInterceptorBindingTypes.containsKey(bindingType)
++                || additionalInterceptorBindingTypesAnnotatedTypes.containsKey(bindingType);
++    }
++
++    public Set<Annotation> getInterceptorBindingDefinition(Class<? extends Annotation> bindingType)
++    {
++        AnnotatedType<?> annotatedType = additionalInterceptorBindingTypesAnnotatedTypes.get(bindingType);
++        Set<Annotation> definition = annotatedType == null
++                ? new HashSet<>(Arrays.asList(bindingType.getDeclaredAnnotations()))
++                : new HashSet<>(annotatedType.getAnnotations());
++        Set<Annotation> additional = additionalInterceptorBindingTypes.get(bindingType);
++        if (additional != null)
+         {
+-            return true;
++            definition.addAll(additional);
+         }
+-        for (AnnotatedType<?> at : additionalInterceptorBindingTypesAnnotatedTypes)
++        if (hasInterceptorBindingType(bindingType))
+         {
+-            if (bindingType.equals(at.getJavaClass()))
+-            {
+-                return true;
+-            }
++            definition.add(INTERCEPTOR_BINDING);
+         }
+-        return false;
++        return definition;
++    }
++
++    public boolean isInterceptorBindingEqual(Annotation first, Annotation second)
++    {
++        AnnotatedType<?> annotatedType = additionalInterceptorBindingTypesAnnotatedTypes.get(first.annotationType());
++        return annotatedType == null
++                ? AnnotationUtil.isCdiAnnotationEqual(first, second)
++                : AnnotationUtil.isCdiAnnotationEqual(annotatedType, first, second);
+     }
+ 
+ 
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/AtBinding.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/AtBinding.java
+new file mode 100644
+index 000000000..d4ed70ab4
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/AtBinding.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target({TYPE, java.lang.annotation.ElementType.METHOD})
++@Retention(RUNTIME)
++public @interface AtBinding
++{
++    class Literal extends AnnotationLiteral<AtBinding> implements AtBinding
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Counted.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Counted.java
+new file mode 100644
+index 000000000..64a62fe8a
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Counted.java
+@@ -0,0 +1,39 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Repeatable;
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++import jakarta.interceptor.InterceptorBinding;
++
++@InterceptorBinding
++@Repeatable(CountedContainer.class)
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface Counted
++{
++    class Literal extends AnnotationLiteral<Counted> implements Counted
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountedContainer.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountedContainer.java
+new file mode 100644
+index 000000000..d62f3be44
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountedContainer.java
+@@ -0,0 +1,30 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface CountedContainer
++{
++    Counted[] value();
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountedInterceptor.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountedInterceptor.java
+new file mode 100644
+index 000000000..976bb5185
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountedInterceptor.java
+@@ -0,0 +1,44 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import java.util.concurrent.atomic.AtomicInteger;
++
++import jakarta.annotation.Priority;
++import jakarta.interceptor.AroundInvoke;
++import jakarta.interceptor.Interceptor;
++import jakarta.interceptor.InvocationContext;
++
++@Interceptor
++@Counted
++@Priority(Interceptor.Priority.APPLICATION + 20)
++public class CountedInterceptor
++{
++    public static final AtomicInteger count = new AtomicInteger();
++
++    public static void reset()
++    {
++        count.set(0);
++    }
++
++    @AroundInvoke
++    public Object intercept(InvocationContext context) throws Exception
++    {
++        count.incrementAndGet();
++        return context.proceed();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingBinding.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingBinding.java
+new file mode 100644
+index 000000000..3e2c28c48
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingBinding.java
+@@ -0,0 +1,38 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.METHOD;
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++import jakarta.interceptor.InterceptorBinding;
++
++@InterceptorBinding
++@Target({TYPE, METHOD})
++@Retention(RUNTIME)
++public @interface CountingBinding
++{
++    class Literal extends AnnotationLiteral<CountingBinding> implements CountingBinding
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingBindingAddingAnnotatedType.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingBindingAddingAnnotatedType.java
+new file mode 100644
+index 000000000..f58345ceb
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingBindingAddingAnnotatedType.java
+@@ -0,0 +1,99 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import java.lang.annotation.Annotation;
++import java.lang.reflect.Type;
++import java.util.HashSet;
++import java.util.Set;
++
++import jakarta.enterprise.inject.spi.AnnotatedConstructor;
++import jakarta.enterprise.inject.spi.AnnotatedField;
++import jakarta.enterprise.inject.spi.AnnotatedMethod;
++import jakarta.enterprise.inject.spi.AnnotatedType;
++
++public class CountingBindingAddingAnnotatedType<X> implements AnnotatedType<X>
++{
++    private final AnnotatedType<X> delegate;
++    private final Set<Annotation> annotations;
++
++    public CountingBindingAddingAnnotatedType(AnnotatedType<X> delegate)
++    {
++        this.delegate = delegate;
++        this.annotations = new HashSet<>(delegate.getAnnotations());
++        this.annotations.add(CountingBinding.Literal.INSTANCE);
++    }
++
++    @Override
++    public Set<Annotation> getAnnotations()
++    {
++        return annotations;
++    }
++
++    @Override
++    @SuppressWarnings("unchecked")
++    public <T extends Annotation> T getAnnotation(Class<T> annotationType)
++    {
++        if (annotationType.equals(CountingBinding.class))
++        {
++            return (T) CountingBinding.Literal.INSTANCE;
++        }
++        return delegate.getAnnotation(annotationType);
++    }
++
++    @Override
++    public boolean isAnnotationPresent(Class<? extends Annotation> annotationType)
++    {
++        return annotationType.equals(CountingBinding.class) || delegate.isAnnotationPresent(annotationType);
++    }
++
++    @Override
++    public Class<X> getJavaClass()
++    {
++        return delegate.getJavaClass();
++    }
++
++    @Override
++    public Set<AnnotatedConstructor<X>> getConstructors()
++    {
++        return delegate.getConstructors();
++    }
++
++    @Override
++    public Set<AnnotatedMethod<? super X>> getMethods()
++    {
++        return delegate.getMethods();
++    }
++
++    @Override
++    public Set<AnnotatedField<? super X>> getFields()
++    {
++        return delegate.getFields();
++    }
++
++    @Override
++    public Type getBaseType()
++    {
++        return delegate.getBaseType();
++    }
++
++    @Override
++    public Set<Type> getTypeClosure()
++    {
++        return delegate.getTypeClosure();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingInterceptor.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingInterceptor.java
+new file mode 100644
+index 000000000..3a6441b73
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CountingInterceptor.java
+@@ -0,0 +1,100 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import java.util.concurrent.atomic.AtomicInteger;
++import java.lang.annotation.Annotation;
++import java.util.Set;
++
++import jakarta.annotation.PreDestroy;
++import jakarta.annotation.PostConstruct;
++import jakarta.annotation.Priority;
++import jakarta.interceptor.AroundConstruct;
++import jakarta.interceptor.AroundInvoke;
++import jakarta.interceptor.Interceptor;
++import jakarta.interceptor.InvocationContext;
++
++@Interceptor
++@CountingBinding
++@Priority(Interceptor.Priority.APPLICATION)
++public class CountingInterceptor
++{
++    public static final AtomicInteger count = new AtomicInteger();
++    public static final AtomicInteger postConstructCount = new AtomicInteger();
++    public static final AtomicInteger aroundConstructCount = new AtomicInteger();
++    public static final AtomicInteger preDestroyCount = new AtomicInteger();
++    public static Set<Annotation> invocationBindings = Set.of();
++
++    public static void reset()
++    {
++        count.set(0);
++        postConstructCount.set(0);
++        aroundConstructCount.set(0);
++        preDestroyCount.set(0);
++        invocationBindings = Set.of();
++    }
++
++    @AroundInvoke
++    public Object intercept(InvocationContext context) throws Exception
++    {
++        count.incrementAndGet();
++        invocationBindings = Set.copyOf(context.getInterceptorBindings());
++        return context.proceed();
++    }
++
++    @AroundConstruct
++    public void onAroundConstruct(InvocationContext context)
++    {
++        aroundConstructCount.incrementAndGet();
++        try
++        {
++            context.proceed();
++        }
++        catch (Exception e)
++        {
++            throw new RuntimeException(e);
++        }
++    }
++
++    @PreDestroy
++    public void onPreDestroy(InvocationContext context)
++    {
++        preDestroyCount.incrementAndGet();
++        try
++        {
++            context.proceed();
++        }
++        catch (Exception exception)
++        {
++            throw new RuntimeException(exception);
++        }
++    }
++
++    @PostConstruct
++    public void onPostConstruct(InvocationContext context)
++    {
++        postConstructCount.incrementAndGet();
++        try
++        {
++            context.proceed();
++        }
++        catch (Exception e)
++        {
++            throw new RuntimeException(e);
++        }
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CrossMid.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CrossMid.java
+new file mode 100644
+index 000000000..d5e6c2150
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CrossMid.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface CrossMid
++{
++    class Literal extends AnnotationLiteral<CrossMid> implements CrossMid
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CrossTop.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CrossTop.java
+new file mode 100644
+index 000000000..a434e1838
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CrossTop.java
+@@ -0,0 +1,29 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface CrossTop
++{
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CycleA.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CycleA.java
+new file mode 100644
+index 000000000..5918760fb
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CycleA.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface CycleA
++{
++    class Literal extends AnnotationLiteral<CycleA> implements CycleA
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CycleB.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CycleB.java
+new file mode 100644
+index 000000000..837c52e52
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/CycleB.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface CycleB
++{
++    class Literal extends AnnotationLiteral<CycleB> implements CycleB
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondLeft.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondLeft.java
+new file mode 100644
+index 000000000..c2843286a
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondLeft.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface DiamondLeft
++{
++    class Literal extends AnnotationLiteral<DiamondLeft> implements DiamondLeft
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondRight.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondRight.java
+new file mode 100644
+index 000000000..bcf17cb47
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondRight.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface DiamondRight
++{
++    class Literal extends AnnotationLiteral<DiamondRight> implements DiamondRight
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondTop.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondTop.java
+new file mode 100644
+index 000000000..0f00eae7e
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/DiamondTop.java
+@@ -0,0 +1,29 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface DiamondTop
++{
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Level1.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Level1.java
+new file mode 100644
+index 000000000..fa4354cd9
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Level1.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface Level1
++{
++    class Literal extends AnnotationLiteral<Level1> implements Level1
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Level2.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Level2.java
+new file mode 100644
+index 000000000..629e1646f
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/Level2.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface Level2
++{
++    class Literal extends AnnotationLiteral<Level2> implements Level2
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ParentBoundInterceptor.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ParentBoundInterceptor.java
+new file mode 100644
+index 000000000..eec488956
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ParentBoundInterceptor.java
+@@ -0,0 +1,44 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import java.util.concurrent.atomic.AtomicInteger;
++
++import jakarta.annotation.Priority;
++import jakarta.interceptor.AroundInvoke;
++import jakarta.interceptor.Interceptor;
++import jakarta.interceptor.InvocationContext;
++
++@Interceptor
++@TransitiveBinding
++@Priority(Interceptor.Priority.APPLICATION + 30)
++public class ParentBoundInterceptor
++{
++    public static final AtomicInteger count = new AtomicInteger();
++
++    public static void reset()
++    {
++        count.set(0);
++    }
++
++    @AroundInvoke
++    public Object intercept(InvocationContext context) throws Exception
++    {
++        count.incrementAndGet();
++        return context.proceed();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/SelfMeta.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/SelfMeta.java
+new file mode 100644
+index 000000000..a73070641
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/SelfMeta.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface SelfMeta
++{
++    class Literal extends AnnotationLiteral<SelfMeta> implements SelfMeta
++    {
++        public static final Literal INSTANCE = new Literal();
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ToCounted.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ToCounted.java
+new file mode 100644
+index 000000000..f93804097
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ToCounted.java
+@@ -0,0 +1,29 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface ToCounted
++{
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ToValue.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ToValue.java
+new file mode 100644
+index 000000000..8d31888bc
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ToValue.java
+@@ -0,0 +1,29 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface ToValue
++{
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveBinding.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveBinding.java
+new file mode 100644
+index 000000000..4dfa06ada
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveBinding.java
+@@ -0,0 +1,29 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++@Target({TYPE, java.lang.annotation.ElementType.METHOD})
++@Retention(RUNTIME)
++public @interface TransitiveBinding
++{
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveBindingExtension.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveBindingExtension.java
+new file mode 100644
+index 000000000..7baf0d1f6
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveBindingExtension.java
+@@ -0,0 +1,45 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import jakarta.enterprise.event.Observes;
++import jakarta.enterprise.inject.spi.BeanManager;
++import jakarta.enterprise.inject.spi.BeforeBeanDiscovery;
++import jakarta.enterprise.inject.spi.Extension;
++
++public class TransitiveBindingExtension implements Extension
++{
++    public void register(@Observes BeforeBeanDiscovery beforeBeanDiscovery, BeanManager beanManager)
++    {
++        beforeBeanDiscovery.addInterceptorBinding(TransitiveBinding.class, CountingBinding.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(Level2.class, CountingBinding.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(Level1.class, Level2.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(CycleA.class, CycleB.Literal.INSTANCE, CountingBinding.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(CycleB.class, CycleA.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(
++                new CountingBindingAddingAnnotatedType<>(beanManager.createAnnotatedType(AtBinding.class)));
++        beforeBeanDiscovery.addInterceptorBinding(ToValue.class, new ValueBinding.Literal("registered"));
++        beforeBeanDiscovery.addInterceptorBinding(ToCounted.class, Counted.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(DiamondTop.class, DiamondLeft.Literal.INSTANCE, DiamondRight.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(DiamondLeft.class, CountingBinding.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(DiamondRight.class, CountingBinding.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(CrossTop.class, CrossMid.Literal.INSTANCE);
++        beforeBeanDiscovery.addInterceptorBinding(
++                new CountingBindingAddingAnnotatedType<>(beanManager.createAnnotatedType(CrossMid.class)));
++        beforeBeanDiscovery.addInterceptorBinding(SelfMeta.class, SelfMeta.Literal.INSTANCE, CountingBinding.Literal.INSTANCE);
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveInterceptorBindingTest.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveInterceptorBindingTest.java
+new file mode 100644
+index 000000000..fd29a0d56
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitiveInterceptorBindingTest.java
+@@ -0,0 +1,651 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertFalse;
++import static org.junit.Assert.assertTrue;
++import static org.junit.Assert.assertThrows;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++import jakarta.annotation.Priority;
++import jakarta.enterprise.context.ApplicationScoped;
++import jakarta.enterprise.context.Dependent;
++import jakarta.enterprise.event.Observes;
++import jakarta.enterprise.inject.spi.BeforeBeanDiscovery;
++import jakarta.enterprise.inject.spi.Extension;
++import jakarta.enterprise.inject.spi.InterceptionType;
++import jakarta.enterprise.util.AnnotationLiteral;
++import jakarta.enterprise.util.Nonbinding;
++import jakarta.interceptor.AroundInvoke;
++import jakarta.interceptor.Interceptor;
++import jakarta.interceptor.InterceptorBinding;
++import jakarta.interceptor.InvocationContext;
++import org.apache.webbeans.annotation.EmptyAnnotationLiteral;
++import org.apache.webbeans.exception.WebBeansConfigurationException;
++
++import org.apache.webbeans.test.AbstractUnitTest;
++import org.junit.Test;
++
++public class TransitiveInterceptorBindingTest extends AbstractUnitTest
++{
++    private void start(Class<?>... beans)
++    {
++        Class<?>[] all = new Class<?>[beans.length + 4];
++        all[0] = CountingInterceptor.class;
++        all[1] = ValueInterceptor.class;
++        all[2] = CountedInterceptor.class;
++        all[3] = ParentBoundInterceptor.class;
++        System.arraycopy(beans, 0, all, 4, beans.length);
++        addExtension(new TransitiveBindingExtension());
++        startContainer(all);
++        CountingInterceptor.reset();
++        ValueInterceptor.reset();
++        CountedInterceptor.reset();
++        ParentBoundInterceptor.reset();
++    }
++
++    @Test
++    public void classForm()
++    {
++        start(ClassFormService.class);
++        getInstance(ClassFormService.class).run();
++        assertEquals(1, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void multiLevelChain()
++    {
++        start(MultiLevelService.class);
++        getInstance(MultiLevelService.class).run();
++        assertEquals("Level1 -> Level2 -> @CountingBinding must resolve", 1, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void cycleTerminatesAndResolves()
++    {
++        start(CycleService.class);
++        getInstance(CycleService.class).run();
++        assertEquals("@CycleA -> @CycleB -> @CycleA cycle must terminate and still apply @CountingBinding",
++                1, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void annotatedTypeForm()
++    {
++        start(AnnotatedTypeService.class);
++        getInstance(AnnotatedTypeService.class).run();
++        assertEquals(1, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void lifecycleInterceptionViaTransitiveBinding()
++    {
++        start(ClassFormService.class);
++        getInstance(ClassFormService.class).run();
++        assertEquals("@PostConstruct interceptor must fire for a transitively bound bean", 1,
++                CountingInterceptor.postConstructCount.get());
++    }
++
++    @Test
++    public void nonbindingMemberOnExpandedBinding()
++    {
++        start(NonbindingService.class);
++        getInstance(NonbindingService.class).run();
++        assertEquals("@ToValue -> @ValueBinding(\"registered\") must match @ValueBinding() (value is @Nonbinding)",
++                1, ValueInterceptor.count.get());
++    }
++
++    @Test
++    public void unrelatedBeanIsNotOverIntercepted()
++    {
++        start(PlainService.class);
++        getInstance(PlainService.class).run();
++        assertEquals("a bean with no registered binding must not be intercepted", 0, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void aroundConstructViaTransitiveBinding()
++    {
++        start(AroundConstructService.class);
++        getInstance(AroundConstructService.class);
++        assertEquals("@AroundConstruct interceptor must fire for a transitively bound bean", 1,
++                CountingInterceptor.aroundConstructCount.get());
++    }
++
++    @Test
++    public void interceptorBoundToParentBindingDoesNotMatchLeafBoundBean()
++    {
++        start(LeafBoundService.class);
++        getInstance(LeafBoundService.class).run();
++        assertEquals("an interceptor bound to the parent binding must not intercept a bean bound only to the leaf",
++                0, ParentBoundInterceptor.count.get());
++        assertEquals("the leaf-bound interceptor must still intercept the leaf-bound bean", 1,
++                CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void diamondTransitiveBindingResolvesExactlyOnce()
++    {
++        start(DiamondService.class);
++        getInstance(DiamondService.class).run();
++        assertEquals("@DiamondTop -> {@DiamondLeft, @DiamondRight} -> @CountingBinding must resolve once", 1,
++                CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void crossFormTransitiveChainResolves()
++    {
++        start(CrossFormService.class);
++        getInstance(CrossFormService.class).run();
++        assertEquals("@CrossTop (Class form) -> @CrossMid (AnnotatedType form) -> @CountingBinding must resolve", 1,
++                CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void selfMetaAnnotatedBindingTerminatesAndResolves()
++    {
++        start(SelfMetaService.class);
++        getInstance(SelfMetaService.class).run();
++        assertEquals("@SelfMeta -> {@SelfMeta, @CountingBinding} must terminate and apply @CountingBinding", 1,
++                CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void repeatableBindingType()
++    {
++        start(RepeatableService.class);
++        getInstance(RepeatableService.class).run();
++        assertEquals("@ToCounted -> @Counted (a @Repeatable binding) must resolve", 1, CountedInterceptor.count.get());
++    }
++
++    @Test
++    public void stereotypeCarryingTransitiveBinding()
++    {
++        start(StereotypeService.class);
++        getInstance(StereotypeService.class).run();
++        assertEquals("a stereotype carrying @TransitiveBinding must expand to @CountingBinding", 1,
++                CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void preDestroyUsesProgrammaticBinding()
++    {
++        start(ClassFormService.class);
++        getInstance(ClassFormService.class).run();
++        shutDownContainer();
++        assertEquals(1, CountingInterceptor.preDestroyCount.get());
++    }
++
++    @Test
++    public void invocationContextContainsEffectiveTransitiveBindings()
++    {
++        addExtension(new MixedExtension(false));
++        start(MixedService.class);
++        getInstance(MixedService.class).run();
++        assertTrue(CountingInterceptor.invocationBindings.contains(CountingBinding.Literal.INSTANCE));
++        assertTrue(CountingInterceptor.invocationBindings.stream()
++                .anyMatch(annotation -> annotation.annotationType() == BytecodeLink.class));
++    }
++
++    @Test
++    public void returnedBindingDefinitionCannotMutateContainerMetadata()
++    {
++        start(ClassFormService.class);
++        getBeanManager().getInterceptorBindingDefinition(TransitiveBinding.class).clear();
++        assertTrue(getBeanManager().getInterceptorBindingDefinition(TransitiveBinding.class)
++                .contains(CountingBinding.Literal.INSTANCE));
++    }
++
++    @Test
++    public void unknownBindingDefinitionIsRejected()
++    {
++        start(PlainService.class);
++        assertThrows(IllegalArgumentException.class,
++                () -> getBeanManager().getInterceptorBindingDefinition(Deprecated.class));
++    }
++
++    @Test
++    public void clearingManagerRemovesAnnotatedTypeRegistrations()
++    {
++        start(AnnotatedTypeService.class);
++        org.apache.webbeans.intercept.InterceptorsManager manager = getWebBeansContext().getInterceptorsManager();
++        assertTrue(manager.hasInterceptorBindingType(AtBinding.class));
++        shutDownContainer();
++        assertFalse(manager.hasInterceptorBindingType(AtBinding.class));
++    }
++
++    @Test
++    public void classFormOnMethod()
++    {
++        start(MethodClassFormService.class);
++        getInstance(MethodClassFormService.class).run();
++        assertEquals(1, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void annotatedTypeFormOnMethod()
++    {
++        start(MethodAnnotatedTypeService.class);
++        getInstance(MethodAnnotatedTypeService.class).run();
++        assertEquals(1, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void programmaticClassFormExpandsBytecodeBindings()
++    {
++        assertMixedChain(false);
++    }
++
++    @Test
++    public void configuredAnnotatedTypeExpandsBytecodeBindings()
++    {
++        assertMixedChain(true);
++    }
++
++    private void assertMixedChain(boolean configured)
++    {
++        addExtension(new MixedExtension(configured));
++        start(BytecodeControl.class, MixedService.class);
++        getInstance(BytecodeControl.class).run();
++        assertEquals(1, CountingInterceptor.count.get());
++        CountingInterceptor.count.set(0);
++        getInstance(MixedService.class).run();
++        assertEquals(1, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void classFormDefinitionIncludesRegisteredMetadata()
++    {
++        start(ClassFormService.class);
++        assertTrue(getBeanManager().isInterceptorBinding(TransitiveBinding.class));
++        assertTrue(getBeanManager().getInterceptorBindingDefinition(TransitiveBinding.class)
++                .contains(CountingBinding.Literal.INSTANCE));
++        assertTrue(getBeanManager().getInterceptorBindingDefinition(TransitiveBinding.class).stream()
++                .anyMatch(annotation -> annotation.annotationType() == InterceptorBinding.class));
++    }
++
++    @Test
++    public void annotatedTypeDefinitionIncludesRegisteredMetadata()
++    {
++        start(AnnotatedTypeService.class);
++        assertTrue(getBeanManager().getInterceptorBindingDefinition(AtBinding.class)
++                .contains(CountingBinding.Literal.INSTANCE));
++    }
++
++    @Test
++    public void spiResolvesProgrammaticClassForm()
++    {
++        start(ClassFormService.class);
++        assertEquals(1, getBeanManager().resolveInterceptors(InterceptionType.AROUND_INVOKE,
++                ClassFormService.class.getAnnotation(TransitiveBinding.class)).stream()
++                .filter(interceptor -> interceptor.getBeanClass() == CountingInterceptor.class).count());
++    }
++
++    @Test
++    public void spiResolvesAnnotatedTypeForm()
++    {
++        start(AnnotatedTypeService.class);
++        assertEquals(1, getBeanManager().resolveInterceptors(InterceptionType.AROUND_INVOKE,
++                AnnotatedTypeService.class.getAnnotation(AtBinding.class)).size());
++    }
++
++    @Test
++    public void inheritedProgrammaticBindingAppliesToOverriddenMethod()
++    {
++        addExtension(new MixedExtension(false));
++        start(InheritedService.class);
++        getInstance(InheritedService.class).run();
++        assertEquals(1, CountingInterceptor.count.get());
++    }
++
++    @Test
++    public void annotatedTypeCanRemoveBytecodeMetaBinding()
++    {
++        addExtension(new Extension()
++        {
++            public void configure(@Observes BeforeBeanDiscovery event)
++            {
++                event.configureInterceptorBinding(BytecodeLink.class)
++                        .remove(annotation -> annotation.annotationType() == CountingBinding.class);
++            }
++        });
++        start(BytecodeControl.class);
++        getInstance(BytecodeControl.class).run();
++        assertEquals(0, CountingInterceptor.count.get());
++        assertFalse(getBeanManager().getInterceptorBindingDefinition(BytecodeLink.class)
++                .contains(CountingBinding.Literal.INSTANCE));
++    }
++
++    @Test
++    public void annotatedTypeNonbindingIsUsedForTransitiveConflictChecks()
++    {
++        addExtension(new ValueExtension(true));
++        start(ConflictingService.class, MethodValueInterceptor.class);
++        assertEquals("intercepted", getInstance(ConflictingService.class).run());
++    }
++
++    @Test
++    public void differentBindingValuesAreRejectedDuringDeployment()
++    {
++        addExtension(new ValueExtension(false));
++        assertThrows(WebBeansConfigurationException.class,
++                () -> start(ConflictingService.class, MethodValueInterceptor.class));
++    }
++
++    @Test
++    public void methodBindingOverridesTransitiveClassBinding()
++    {
++        addExtension(new ValueExtension(false));
++        start(OverridingService.class, MethodValueInterceptor.class, ClassValueInterceptor.class);
++        assertEquals("intercepted", getInstance(OverridingService.class).run());
++    }
++
++    public static class MixedExtension implements Extension
++    {
++        private final boolean configured;
++
++        public MixedExtension(boolean configured)
++        {
++            this.configured = configured;
++        }
++
++        public void register(@Observes BeforeBeanDiscovery event)
++        {
++            if (configured)
++            {
++                event.configureInterceptorBinding(ProgrammaticLink.class).add(new EmptyAnnotationLiteral<BytecodeLink>() { });
++            }
++            else
++            {
++                event.addInterceptorBinding(ProgrammaticLink.class, new EmptyAnnotationLiteral<BytecodeLink>() { });
++            }
++            event.addInterceptorBinding(InheritedLink.class, CountingBinding.Literal.INSTANCE);
++        }
++    }
++
++    public static class ValueExtension implements Extension
++    {
++        private final boolean nonbinding;
++
++        public ValueExtension(boolean nonbinding)
++        {
++            this.nonbinding = nonbinding;
++        }
++
++        public void register(@Observes BeforeBeanDiscovery event)
++        {
++            event.addInterceptorBinding(LeftValue.class, new ValueLiteral("left"));
++            event.addInterceptorBinding(RightValue.class, new ValueLiteral("right"));
++            if (nonbinding)
++            {
++                event.configureInterceptorBinding(RegisteredValue.class)
++                        .filterMethods(method -> method.getJavaMember().getName().equals("value"))
++                        .forEach(method -> method.add(new EmptyAnnotationLiteral<Nonbinding>() { }));
++            }
++        }
++    }
++
++    @InterceptorBinding
++    @CountingBinding
++    @Retention(RetentionPolicy.RUNTIME)
++    @Target({ElementType.TYPE, ElementType.METHOD})
++    public @interface BytecodeLink { }
++
++    @Retention(RetentionPolicy.RUNTIME)
++    @Target({ElementType.TYPE, ElementType.METHOD})
++    public @interface ProgrammaticLink { }
++
++    @Inherited
++    @Retention(RetentionPolicy.RUNTIME)
++    @Target({ElementType.TYPE, ElementType.METHOD})
++    public @interface InheritedLink { }
++
++    @InterceptorBinding
++    @Retention(RetentionPolicy.RUNTIME)
++    @Target({ElementType.TYPE, ElementType.METHOD})
++    public @interface RegisteredValue
++    {
++        String value();
++    }
++
++    @Retention(RetentionPolicy.RUNTIME)
++    @Target(ElementType.TYPE)
++    public @interface LeftValue { }
++
++    @Retention(RetentionPolicy.RUNTIME)
++    @Target(ElementType.TYPE)
++    public @interface RightValue { }
++
++    public static class ValueLiteral extends AnnotationLiteral<RegisteredValue> implements RegisteredValue
++    {
++        private final String value;
++
++        public ValueLiteral(String value)
++        {
++            this.value = value;
++        }
++
++        @Override
++        public String value()
++        {
++            return value;
++        }
++    }
++
++    @Dependent
++    @BytecodeLink
++    public static class BytecodeControl
++    {
++        public void run() { }
++    }
++
++    @Dependent
++    @ProgrammaticLink
++    public static class MixedService
++    {
++        public void run() { }
++    }
++
++    @Dependent
++    public static class MethodClassFormService
++    {
++        @TransitiveBinding
++        public void run() { }
++    }
++
++    @Dependent
++    public static class MethodAnnotatedTypeService
++    {
++        @AtBinding
++        public void run() { }
++    }
++
++    @InheritedLink
++    public static class InheritedBase
++    {
++        public void run() { }
++    }
++
++    @Dependent
++    public static class InheritedService extends InheritedBase
++    {
++        @Override
++        public void run() { }
++    }
++
++    @Dependent
++    @LeftValue
++    @RightValue
++    public static class ConflictingService
++    {
++        public String run() { return "not intercepted"; }
++    }
++
++    @Dependent
++    @LeftValue
++    public static class OverridingService
++    {
++        @RegisteredValue("method")
++        public String run() { return "not intercepted"; }
++    }
++
++    @Interceptor
++    @Priority(Interceptor.Priority.APPLICATION - 1)
++    @RegisteredValue("left")
++    public static class ClassValueInterceptor
++    {
++        @AroundInvoke
++        public Object intercept(InvocationContext context)
++        {
++            return "overridden class binding was incorrectly restored";
++        }
++    }
++
++    @Interceptor
++    @Priority(Interceptor.Priority.APPLICATION)
++    @RegisteredValue("method")
++    public static class MethodValueInterceptor
++    {
++        @AroundInvoke
++        public Object intercept(InvocationContext context)
++        {
++            return "intercepted";
++        }
++    }
++
++    @ApplicationScoped
++    @TransitiveBinding
++    public static class ClassFormService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @Level1
++    public static class MultiLevelService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @CycleA
++    public static class CycleService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @AtBinding
++    public static class AnnotatedTypeService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @ToValue
++    public static class NonbindingService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    public static class PlainService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @ToCounted
++    public static class RepeatableService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @TransitivelyBoundStereotype
++    public static class StereotypeService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @Dependent
++    @TransitiveBinding
++    public static class AroundConstructService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @CountingBinding
++    public static class LeafBoundService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @DiamondTop
++    public static class DiamondService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @CrossTop
++    public static class CrossFormService
++    {
++        public void run()
++        {
++        }
++    }
++
++    @ApplicationScoped
++    @SelfMeta
++    public static class SelfMetaService
++    {
++        public void run()
++        {
++        }
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitivelyBoundStereotype.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitivelyBoundStereotype.java
+new file mode 100644
+index 000000000..09b5709d8
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/TransitivelyBoundStereotype.java
+@@ -0,0 +1,33 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.inject.Stereotype;
++
++@Stereotype
++@TransitiveBinding
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface TransitivelyBoundStereotype
++{
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ValueBinding.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ValueBinding.java
+new file mode 100644
+index 000000000..7f11d36af
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ValueBinding.java
+@@ -0,0 +1,42 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import static java.lang.annotation.ElementType.TYPE;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import jakarta.enterprise.util.AnnotationLiteral;
++import jakarta.enterprise.util.Nonbinding;
++import jakarta.interceptor.InterceptorBinding;
++
++@InterceptorBinding
++@Target(TYPE)
++@Retention(RUNTIME)
++public @interface ValueBinding
++{
++    @Nonbinding String value() default "";
++
++    class Literal extends AnnotationLiteral<ValueBinding> implements ValueBinding
++    {
++        private final String value;
++        public Literal(String value) { this.value = value; }
++        @Override public String value() { return value; }
++    }
++}
+diff --git a/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ValueInterceptor.java b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ValueInterceptor.java
+new file mode 100644
+index 000000000..bcde8ada0
+--- /dev/null
++++ b/webbeans-impl/src/test/java/org/apache/webbeans/test/interceptors/transitivebinding/ValueInterceptor.java
+@@ -0,0 +1,44 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.webbeans.test.interceptors.transitivebinding;
++
++import java.util.concurrent.atomic.AtomicInteger;
++
++import jakarta.annotation.Priority;
++import jakarta.interceptor.AroundInvoke;
++import jakarta.interceptor.Interceptor;
++import jakarta.interceptor.InvocationContext;
++
++@Interceptor
++@ValueBinding
++@Priority(Interceptor.Priority.APPLICATION + 10)
++public class ValueInterceptor
++{
++    public static final AtomicInteger count = new AtomicInteger();
++
++    public static void reset()
++    {
++        count.set(0);
++    }
++
++    @AroundInvoke
++    public Object intercept(InvocationContext context) throws Exception
++    {
++        count.incrementAndGet();
++        return context.proceed();
++    }
++}

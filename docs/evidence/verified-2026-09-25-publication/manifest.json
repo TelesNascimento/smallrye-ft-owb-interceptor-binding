@@ -1,0 +1,4490 @@
+{
+  "base_sha": "c53140ddbbccb4d0c8f82f9fdf683c7193ee4587",
+  "patches": {
+    "0001-effective-interceptor-bindings.patch": "d0a6c37765d7552df7b3a7f51b4cdb8d73789868547683404d37dd28037e66d4",
+    "0002-extension-archive-filter.patch": "829c774b2c8d8caa4a468bdfa311e622dd6871b1d2b8a86ca1d9a0f5e536cdce"
+  },
+  "sources": {
+    "pom.xml": "0d3a4582bcb504092a6383f956cca99f55aa3e2c3a62d8c06d3b25b3232d8453",
+    "cdi-isolation/pom.xml": "0daa04278717a2cf5c78f2a42e20bd9197ea0b4179329f19dc85fed46ea5a761",
+    "scripts/verify-local.py": "fbbd5f2aed48f463321e02750ec707dd61e13ae7206652aff3ada7b9c92d15ad",
+    "src/test/java/io/github/telesnascimento/owb/RetryBean.java": "57af69739ece66651583df8a34a9c0bc9b5928a50d7eb2f0e502a8792cb08cd4",
+    "src/test/java/io/github/telesnascimento/owb/RetryInterceptorBindingTest.java": "6a3d506800c20d30726ffb67ada66d6c3546bc9ca0c0b81a8a7148ecaa7a4ca8",
+    "src/test/resources/META-INF/beans.xml": "d269ce79515469cd96090e9885616b2e5d98e4ed88582498233b17b5118598a5",
+    "src/test/resources/META-INF/openwebbeans/openwebbeans.properties": "d9c388a2a63ba41f8dafa451e58b0b8a5f4403c311ad8a38030b44cf88349a48",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/DirectlyBoundService.java": "b1e138a5f3c83bea4a62e64aa1ce8a0d5ba4f836cc0363b5dc045c4eb97b858f",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/BindingAddingAnnotatedType.java": "acd74eceecf3c9fb1fa9e569ac9de9e168f78613af8512cc5ee745e425e82751",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/RegisteringExtension.java": "b50054e6129550e94dfb79cd82f43aa40f2f63237ee3b75fa52f66c503043011",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/CountingBinding.java": "8b7a100c8ebaca3758c478b4a4ba1b5542ceac0d57e5db98162668e12b3c5e44",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/BindingGraphTest.java": "5be0d8fa49b4a2f565d63d63ce22c6ef8ec6463579076f05c5f044993505af47",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/TransitiveViaAnnotatedTypeService.java": "bc6bb1199a7a74438b5ed862d13f62f0604b2afabab6f1cba91f6f24732aa6f7",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/TransitiveViaClassService.java": "6c080ae45a6388009c38b9efb5450d368bf631ae0b65e7bd786f311ba732b5c7",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/TransitiveViaAnnotatedType.java": "66745f92e66f436da460300727da5ff558598066e66b352b947d6707ee1221d0",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/CountingInterceptor.java": "229bdca329be72b6d2d015ef340b74a43714083a9163a408f5641387e3f3fd32",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/TransitiveViaClass.java": "7ad4fb75e89d6d3c2fc0bbd9e91eeacae6044dbbe516ca4bea24426ff0943369",
+    "cdi-isolation/src/test/java/io/github/telesnascimento/cdi/InterceptorBindingIsolationTest.java": "7e624770903a2126652bd083d1fbe19bb31e4169f3396e716c7586ecff471fdb",
+    "cdi-isolation/src/test/resources/META-INF/beans.xml": "79ad04e30fbf975cb4ca8e57379fc644397e063721264d6a3b738bd02a463058"
+  },
+  "steps": [
+    {
+      "label": "java-version",
+      "command": [
+        "java",
+        "-version"
+      ],
+      "cwd": "<workdir>",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "maven-version",
+      "command": [
+        "mvn",
+        "-version"
+      ],
+      "cwd": "<workdir>",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "clone-baseline",
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "<owb-source>",
+        "<workdir>/baseline"
+      ],
+      "cwd": "<workdir>",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "checkout-baseline",
+      "command": [
+        "git",
+        "checkout",
+        "--detach",
+        "c53140ddbbccb4d0c8f82f9fdf683c7193ee4587"
+      ],
+      "cwd": "<workdir>/baseline",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "native-baseline",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-pl",
+        "webbeans-se,webbeans-tck",
+        "-am",
+        "verify"
+      ],
+      "cwd": "<workdir>/baseline",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.el.test.ELPerformanceTest"
+        },
+        {
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.el.test.DotNamedBeansTest"
+        },
+        {
+          "tests": 1168,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "TestSuite"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.event.component.BrokenComponentTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.InterceptorDecoratorProxyFactoryTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.AbstractDecoratorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.disabledspecialization.DisabledSpecializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.configurator.BeanAttributesConfiguratorImplTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.decorator.Decorator1Test"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.DependingInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.CustomProviderTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.util.ClassUtilTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.circular.tests.CircularInjectionIntoConstructorTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.broken.InjectedInstanceBrokenComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.typed.NotInTypedTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.NewProxyTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.util.WebBeansUtilTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.DecoratorInheritanceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.bean.SerializableBeanEqualTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.vetoes.VetoedPackageTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.alternative.AlternativeTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.InterceptorResolutionServiceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.TypedInjectedComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.performance.StartupPerformanceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.named.NamedTests"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceDestroyalTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.clazz.GenericsUtilTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.BrokenDecoratorTest"
+        },
+        {
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.exception.ScopeTypeExceptionComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.AfterBeanDiscoveryEventTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.FastMatchingGenericsTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.DuplicateNormalScopeProxyClassTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.DecoratorInterceptorProxySerializationTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.xml.DefaultBeanArchiveServiceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.dependent.MultipleDependentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.StringProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.DecoratorAndInterceptorStackTests"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.disposes.beans.broken.BrokenDisposalTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.owb1441.CustomInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.priority.PriorityActivatedInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.PortableAddBeanTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.dependent.DependentComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.ProducerMethodSpecializationOverloadTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.InheritedBeanInterceptorTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.NormalScopeProxyFactoryTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.qualifier.CacheUsesQualifierOverridesTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.observer.prot.ProtectedObserverTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.ejb.EjbInterceptorTest"
+        },
+        {
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.xml.strict.AlternativesTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.BeforeBeanDiscoveryTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.component.classscanning.NoClassDefFoundHandlingTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.exception.initializer.BrokenInitializerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.DecoratorProxySerializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 1,
+          "name": "org.apache.webbeans.test.decorators.tests.ConversationDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.MultipleCallDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.configurator.TrackingAnnotatedTypeConfiguratorImplTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.ProducerFieldPassivationIdTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.util.GenericsUtilTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.WithInheritedStereoTypeInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.ProductProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.circular.tests.CircularInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.performance.BeanResolvingPerformanceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.DecoratorConfigurationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.passivation.SpecializesPassivationTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.config.BeansDeployerTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.broken.BrokenProducesTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.injectiontarget.customtarget.CustomTargetNoConstructorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.dependent.DependentLifecycleTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.lifecycle.ExceptionOnCallbackTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.GenericBeanTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.injectiontarget.supportInjections.SupportInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.container.WildcardExtensionMatchingTest"
+        },
+        {
+          "tests": 14,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.util.AnnotationUtilTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.util.WebBeansUtilValidEventTypeWildcardTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.typed.TypedProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.InterceptorProxySerializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.AlternativeSpecializesProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.corespi.scanner.AbstractMetaDataDiscoveryTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.container.OwbCDIProviderTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.AmbigousProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.typedliteral.TypedLiteralComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.serialization.NonSerializableParametersTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.GenericDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.DependentDecoratorDestroyTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.CdiInterceptorBeanBuilderTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.GenericProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.specializedalternative.AlternativeSpecializedEventObserverTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.BridgeMethodOwb923And828Test"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.ExtensionTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.async.ObserversAsyncTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.ProducerComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.CurrentInjectedComponentTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.constructor.AroundConstructTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.typeliteral.TypeLiteralTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.EJBInterceptorExceptionComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.ProxyMappingTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.AlternativeOnProducerFieldTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.unused.UnusedBeanTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.tests.InjectionPointInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.discovery.InterceptorAnnotatedDiscoveryTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.decorator.DecoratorExceptionTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.ProducerMethodSpecialisationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.constructor.InterceptionOfBeanWithConstructorInjectionTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.hash.XxHash64Test"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.disposes.StaticProducerTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.parametrized.GenericClassTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.SerializableAtRuntimeProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.PortableTests"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.HiddenProducerMethodTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.webbeans.SecureAndTransactionalInterceptorTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.definition.proxyable.ProxyableBeanTypeTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.specializes.logger.LoggerSpecializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.scopes.SingletonComponentTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.pfield.ProducerFieldComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.InjectedComponentWithMemberTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.PostConstructComponentTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.ProxyBridgeMethodFlagTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.RepeatedGenericTypeDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.conversation.ConversationManagerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.binding.BrokenBindingComponentTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.BridgeMethodNormalScopeProxyTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceQualifierInjectionPointTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.EjbInterceptorBeanBuilderTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.webbeans.SecureInterceptorComponentTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.AlternativeInstanceTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.promethods.PersonProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.injectiontarget.InjectionTargetTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.ProducerPassivationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.lifecycle.inheritance.LifecycleInheritanceTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.webbeans.WebBeansInterceptComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.proxy.UnsafeTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.SelfInterceptorBeanBuilderTest"
+        },
+        {
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 1,
+          "name": "org.apache.webbeans.test.events.observer.EventTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.ExtendedGenericDecoratorTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.event.component.ObserversComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.definition.NonStaticInnerClassTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.serialization.DependentPassivationCriteriaTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.managed.ProxyFactoryTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.tests.DependentProducerMethodMultipleInjectionPointTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.ProxyGenericsTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.tests.DependentProducerMethodInjectionPointTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.resolution.ManagerResolutionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.parametrized.BoundedTypeVariableTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.InterceptedProducerFieldTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.GetterStringInjectorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.PostConstructInterceptorComponentTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.specializes.SpecializesProducer1Test"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.context.control.OwbRequestContextControllerTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.EJBInterceptComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.InterceptorProxyChainTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.ProxyVetoedTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.event.EventTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.inheritance.InheritedInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.simple.SimpleDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.scopes.ScopeAdapterTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.xml.strict.XMLSpecStrictTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.conversation.ConversationScopedTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.NamedProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.MultiRequestProxyTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.conversation.ConversationSupportAutoModeTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.interceptorbean.CustomInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.ListProducerTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.named.NamedTests"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 2,
+          "name": "org.apache.webbeans.test.unittests.event.exception.EventExceptionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.constructor.DecoratorConstructorInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.StaticProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.lifecycle.inheritance.LifecycleInheritedOverridenTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.broken.BrokenInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.constructor.ConstructorInjectionTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.unproxyable.AllowProxyingTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.typedliteral.TypeLiteralTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.managed.specialized.SpecializeDeactivationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.ExceptionInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.portable.AnnotatedTypeImplTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.bean.ThirdPartyBeanLookupTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.disposes.DisposerMethodBeanTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.extensionevents.ExtensionEventTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.containertests.ComponentResolutionByTypeTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.extension.BeforeBeanDiscoveryImplTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.WithInheritedBindingTypeTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.PaymentProcessorComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.DisposalInjectedComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.library.LibraryComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.PortableAddObserverMethodTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.SerializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.managed.generic.GenericInjectionTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.injectiontarget.ProcessInjectionPointTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.InterceptionFactoryOnInterfacesTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.generics.GenericObserverTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.binding.AnyBindingTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.stereotypes.WarningStereotypeTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.TypedComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.ArrayOuttOfBouncExceptionFromMLTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.InnerClassInjectStringProducerTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.CustomAlternativeBeanTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.session.tests.SessionContextTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.Producer1ConsumerComponentTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.GenericsTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.broken.BrokenProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.initializerMethods.tests.BrokenInitializerMethodBecauseofGenericTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.InnerClassProxyTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.disposes.DependentMethodBeanTest"
+        },
+        {
+          "tests": 19,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.annotation.binding.BeanCacheKeyUnitTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 1,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.AlternativeProducerMethodTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.injectiontarget.ProcessInjectionTargetTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.multiple.MultipleSpecializedProducerMethodsTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.WithStereoTypeInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.webbeans.ShoppingCardInterceptorTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.multiple.MultipleSpecializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.PostConstructDoubleInterceptorComponentTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceIteratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.tests.MultipleTimeTheSameBindingTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.configurator.DefaultQualifierTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.observer.pub.PublicObserverTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.BeanManagerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.specializes.SpecializationComponentTest"
+        },
+        {
+          "tests": 19,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.exception.ExceptionComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.definition.BeanTypesTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.CdiCurrentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.UserComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.configurator.ObserverMethodConfiguratorAfterBeanDiscoveryTest"
+        },
+        {
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.PortableEventTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.primitive.PrimitiveProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.ExtensionErrorsTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.container.SpecificContainerEventTest"
+        },
+        {
+          "tests": 10,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.configurator.AnnotatedTypeConfiguratorImplTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.qualifier.QualifierWithOptionalInjectTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.config.PropertyLoaderTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceInjectionPointTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.InterceptorPerformanceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.MultipleDecoratorStackTests"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.component.third.ThirdPartyProgrammaticLookupTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.AnnotatedTypeImplTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.SubclassProxyFactoryTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceWithTypedTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.dependent.DependentInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.noncontextual.InjectNonContextualTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.javaee.JavaEeInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.CustomBeanDestroyCalledTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.lifecycle.LifecycleTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.GetInjectionPointFromCustomBeanCreateTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.priority.AlternativeWithBeanAndMethodProducerPriorityTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.config.WebBeansScannerTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.injectiontarget.ProcessBeanAttributesTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.context.control.ActivateRequestContextInterceptorBeanTest"
+        },
+        {
+          "tests": 10,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.xml.BeanArchiveServiceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.zoo.GenericsInTheZooTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.injectiontarget.ReplaceInjectionTargetTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.service.ClassLoaderProxyServiceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.ProcessObserverMethodTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.WithAnnotationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.UnproxyableClassWithInterfaceFactoryTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.threadsafety.ThreadSafeBeanInitialisationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.BeanInjectionTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.AlternativeBeanResolvingTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.CustomPrioritizedBeanTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceSelectTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.StandaloneContextsServiceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.promethods.MethodProducer1Test"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.InterceptBridgeMethodTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.ExtensionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.disposal.DisposalTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.InjectedComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.PreDestroyComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.ExtendedMulitpleGenericDecoratorTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.managed.instance.InjectedInstanceComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.typeliterals.TypeLiteralTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.openwebbeans.se.CDISETest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.openwebbeans.se.CDILauncherTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.VirtualResourceInWebappTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianTrimmedBdaJarDeploymentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianJarDeploymentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianWebJarDeploymentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.VirtualResourceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianGetResourcesTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianImplicitBdaJarDeploymentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianWebInfClassesDeploymentTest"
+        }
+      ]
+    },
+    {
+      "label": "baseline-tests-0",
+      "command": [
+        "git",
+        "apply",
+        "--include=*/src/test/*",
+        "<workdir>/reproducer/patches/0001-effective-interceptor-bindings.patch"
+      ],
+      "cwd": "<workdir>/baseline",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "baseline-tests-1",
+      "command": [
+        "git",
+        "apply",
+        "--include=*/src/test/*",
+        "<workdir>/reproducer/patches/0002-extension-archive-filter.patch"
+      ],
+      "cwd": "<workdir>/baseline",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "native-red",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-pl",
+        "webbeans-impl",
+        "-am",
+        "-Dtest=TransitiveInterceptorBindingTest,AbstractMetaDataDiscoveryTest",
+        "-Dsurefire.failIfNoSpecifiedTests=false",
+        "test"
+      ],
+      "cwd": "<workdir>/baseline",
+      "exit_code": 1,
+      "expectation": "red-native",
+      "suites": [
+        {
+          "tests": 13,
+          "failures": 3,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.corespi.scanner.AbstractMetaDataDiscoveryTest"
+        },
+        {
+          "tests": 32,
+          "failures": 29,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.transitivebinding.TransitiveInterceptorBindingTest"
+        }
+      ]
+    },
+    {
+      "label": "clone-fixed",
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "<workdir>/baseline",
+        "<workdir>/fixed"
+      ],
+      "cwd": "<workdir>",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "checkout-fixed",
+      "command": [
+        "git",
+        "checkout",
+        "--detach",
+        "c53140ddbbccb4d0c8f82f9fdf683c7193ee4587"
+      ],
+      "cwd": "<workdir>/fixed",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "apply-fixes",
+      "command": [
+        "git",
+        "apply",
+        "<workdir>/reproducer/patches/0001-effective-interceptor-bindings.patch",
+        "<workdir>/reproducer/patches/0002-extension-archive-filter.patch"
+      ],
+      "cwd": "<workdir>/fixed",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "native-fixed",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-pl",
+        "webbeans-se,webbeans-tck",
+        "-am",
+        "install"
+      ],
+      "cwd": "<workdir>/fixed",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.el.test.ELPerformanceTest"
+        },
+        {
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.el.test.DotNamedBeansTest"
+        },
+        {
+          "tests": 1168,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "TestSuite"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.event.component.BrokenComponentTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.InterceptorDecoratorProxyFactoryTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.AbstractDecoratorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.disabledspecialization.DisabledSpecializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.configurator.BeanAttributesConfiguratorImplTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.decorator.Decorator1Test"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.DependingInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.CustomProviderTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.util.ClassUtilTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.circular.tests.CircularInjectionIntoConstructorTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.broken.InjectedInstanceBrokenComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.typed.NotInTypedTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.NewProxyTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.util.WebBeansUtilTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.DecoratorInheritanceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.bean.SerializableBeanEqualTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.vetoes.VetoedPackageTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.alternative.AlternativeTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.InterceptorResolutionServiceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.TypedInjectedComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.performance.StartupPerformanceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.named.NamedTests"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceDestroyalTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.clazz.GenericsUtilTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.BrokenDecoratorTest"
+        },
+        {
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.exception.ScopeTypeExceptionComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.AfterBeanDiscoveryEventTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.FastMatchingGenericsTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.DuplicateNormalScopeProxyClassTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.DecoratorInterceptorProxySerializationTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.xml.DefaultBeanArchiveServiceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.dependent.MultipleDependentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.StringProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.DecoratorAndInterceptorStackTests"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.disposes.beans.broken.BrokenDisposalTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.owb1441.CustomInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.priority.PriorityActivatedInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.PortableAddBeanTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.dependent.DependentComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.ProducerMethodSpecializationOverloadTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.InheritedBeanInterceptorTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.NormalScopeProxyFactoryTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.qualifier.CacheUsesQualifierOverridesTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.observer.prot.ProtectedObserverTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.ejb.EjbInterceptorTest"
+        },
+        {
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.xml.strict.AlternativesTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.BeforeBeanDiscoveryTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.component.classscanning.NoClassDefFoundHandlingTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.exception.initializer.BrokenInitializerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.DecoratorProxySerializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 1,
+          "name": "org.apache.webbeans.test.decorators.tests.ConversationDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.MultipleCallDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.configurator.TrackingAnnotatedTypeConfiguratorImplTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.ProducerFieldPassivationIdTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.util.GenericsUtilTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.WithInheritedStereoTypeInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.ProductProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.circular.tests.CircularInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.performance.BeanResolvingPerformanceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.DecoratorConfigurationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.passivation.SpecializesPassivationTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.config.BeansDeployerTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.broken.BrokenProducesTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.injectiontarget.customtarget.CustomTargetNoConstructorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.dependent.DependentLifecycleTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.lifecycle.ExceptionOnCallbackTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.GenericBeanTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.injectiontarget.supportInjections.SupportInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.container.WildcardExtensionMatchingTest"
+        },
+        {
+          "tests": 14,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.util.AnnotationUtilTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.util.WebBeansUtilValidEventTypeWildcardTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.typed.TypedProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.InterceptorProxySerializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.AlternativeSpecializesProducerTest"
+        },
+        {
+          "tests": 13,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.corespi.scanner.AbstractMetaDataDiscoveryTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.container.OwbCDIProviderTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.AmbigousProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.typedliteral.TypedLiteralComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.serialization.NonSerializableParametersTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.GenericDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.DependentDecoratorDestroyTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.CdiInterceptorBeanBuilderTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.GenericProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.specializedalternative.AlternativeSpecializedEventObserverTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.BridgeMethodOwb923And828Test"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.ExtensionTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.async.ObserversAsyncTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.ProducerComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.CurrentInjectedComponentTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.constructor.AroundConstructTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.typeliteral.TypeLiteralTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.EJBInterceptorExceptionComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.ProxyMappingTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.AlternativeOnProducerFieldTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.unused.UnusedBeanTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.tests.InjectionPointInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.discovery.InterceptorAnnotatedDiscoveryTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.decorator.DecoratorExceptionTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.ProducerMethodSpecialisationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.constructor.InterceptionOfBeanWithConstructorInjectionTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.hash.XxHash64Test"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.disposes.StaticProducerTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.parametrized.GenericClassTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.SerializableAtRuntimeProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.PortableTests"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.HiddenProducerMethodTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.webbeans.SecureAndTransactionalInterceptorTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.definition.proxyable.ProxyableBeanTypeTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.specializes.logger.LoggerSpecializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.scopes.SingletonComponentTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.pfield.ProducerFieldComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.InjectedComponentWithMemberTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.PostConstructComponentTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.ProxyBridgeMethodFlagTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.RepeatedGenericTypeDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.conversation.ConversationManagerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.binding.BrokenBindingComponentTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.BridgeMethodNormalScopeProxyTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceQualifierInjectionPointTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.EjbInterceptorBeanBuilderTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.webbeans.SecureInterceptorComponentTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.AlternativeInstanceTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.promethods.PersonProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.injectiontarget.InjectionTargetTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.ProducerPassivationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.lifecycle.inheritance.LifecycleInheritanceTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.webbeans.WebBeansInterceptComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.proxy.UnsafeTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.SelfInterceptorBeanBuilderTest"
+        },
+        {
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 1,
+          "name": "org.apache.webbeans.test.events.observer.EventTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.ExtendedGenericDecoratorTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.event.component.ObserversComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.definition.NonStaticInnerClassTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.serialization.DependentPassivationCriteriaTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.managed.ProxyFactoryTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.tests.DependentProducerMethodMultipleInjectionPointTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.ProxyGenericsTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.tests.DependentProducerMethodInjectionPointTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.resolution.ManagerResolutionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.parametrized.BoundedTypeVariableTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.InterceptedProducerFieldTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.GetterStringInjectorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.PostConstructInterceptorComponentTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.specializes.SpecializesProducer1Test"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.context.control.OwbRequestContextControllerTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.EJBInterceptComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.InterceptorProxyChainTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.ProxyVetoedTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.event.EventTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.inheritance.InheritedInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.simple.SimpleDecoratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.scopes.ScopeAdapterTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.xml.strict.XMLSpecStrictTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.conversation.ConversationScopedTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.NamedProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.MultiRequestProxyTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.conversation.ConversationSupportAutoModeTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.interceptorbean.CustomInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.producer.ListProducerTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.named.NamedTests"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 2,
+          "name": "org.apache.webbeans.test.unittests.event.exception.EventExceptionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.constructor.DecoratorConstructorInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.StaticProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.lifecycle.inheritance.LifecycleInheritedOverridenTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.broken.BrokenInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.constructor.ConstructorInjectionTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.unproxyable.AllowProxyingTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.typedliteral.TypeLiteralTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.managed.specialized.SpecializeDeactivationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.ExceptionInterceptorTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.portable.AnnotatedTypeImplTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.bean.ThirdPartyBeanLookupTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.disposes.DisposerMethodBeanTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.extensionevents.ExtensionEventTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.containertests.ComponentResolutionByTypeTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.extension.BeforeBeanDiscoveryImplTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.WithInheritedBindingTypeTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.PaymentProcessorComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.DisposalInjectedComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.library.LibraryComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.PortableAddObserverMethodTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.SerializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.managed.generic.GenericInjectionTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.injectiontarget.ProcessInjectionPointTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.InterceptionFactoryOnInterfacesTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.generics.GenericObserverTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.binding.AnyBindingTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.stereotypes.WarningStereotypeTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.TypedComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.ArrayOuttOfBouncExceptionFromMLTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.profields.InnerClassInjectStringProducerTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.CustomAlternativeBeanTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.session.tests.SessionContextTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.Producer1ConsumerComponentTest"
+        },
+        {
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.GenericsTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.broken.BrokenProducerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.initializerMethods.tests.BrokenInitializerMethodBecauseofGenericTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.proxy.InnerClassProxyTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.disposes.DependentMethodBeanTest"
+        },
+        {
+          "tests": 19,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.annotation.binding.BeanCacheKeyUnitTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 1,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.AlternativeProducerMethodTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.injectiontarget.ProcessInjectionTargetTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.multiple.MultipleSpecializedProducerMethodsTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.WithStereoTypeInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.webbeans.ShoppingCardInterceptorTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.multiple.MultipleSpecializationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.PostConstructDoubleInterceptorComponentTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceIteratorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.tests.MultipleTimeTheSameBindingTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.configurator.DefaultQualifierTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.specalization.observer.pub.PublicObserverTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.BeanManagerTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.specializes.SpecializationComponentTest"
+        },
+        {
+          "tests": 19,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.exception.ExceptionComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.definition.BeanTypesTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.CdiCurrentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.UserComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.configurator.ObserverMethodConfiguratorAfterBeanDiscoveryTest"
+        },
+        {
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.PortableEventTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.producer.primitive.PrimitiveProducerTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.ExtensionErrorsTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.container.SpecificContainerEventTest"
+        },
+        {
+          "tests": 10,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.configurator.AnnotatedTypeConfiguratorImplTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.qualifier.QualifierWithOptionalInjectTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.config.PropertyLoaderTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceInjectionPointTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.business.tests.InterceptorPerformanceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.MultipleDecoratorStackTests"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.component.third.ThirdPartyProgrammaticLookupTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.AnnotatedTypeImplTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.SubclassProxyFactoryTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceWithTypedTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.dependent.DependentInterceptorTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.noncontextual.InjectNonContextualTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.javaee.JavaEeInjectionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.CustomBeanDestroyCalledTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.lifecycle.LifecycleTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.GetInjectionPointFromCustomBeanCreateTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.priority.AlternativeWithBeanAndMethodProducerPriorityTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.config.WebBeansScannerTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.injectiontarget.ProcessBeanAttributesTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.context.control.ActivateRequestContextInterceptorBeanTest"
+        },
+        {
+          "tests": 10,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.xml.BeanArchiveServiceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.injection.generics.zoo.GenericsInTheZooTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.events.injectiontarget.ReplaceInjectionTargetTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.service.ClassLoaderProxyServiceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.events.ProcessObserverMethodTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.WithAnnotationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.factory.UnproxyableClassWithInterfaceFactoryTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.threadsafety.ThreadSafeBeanInitialisationTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.BeanInjectionTest"
+        },
+        {
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.alternatives.tests.AlternativeBeanResolvingTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.CustomPrioritizedBeanTest"
+        },
+        {
+          "tests": 32,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.transitivebinding.TransitiveInterceptorBindingTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.instance.InstanceSelectTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.contexts.StandaloneContextsServiceTest"
+        },
+        {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.promethods.MethodProducer1Test"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.interceptors.resolution.InterceptBridgeMethodTest"
+        },
+        {
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.portable.ExtensionTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.disposal.DisposalTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.inject.InjectedComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.unittests.intercept.PreDestroyComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.decorators.tests.ExtendedMulitpleGenericDecoratorTest"
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.managed.instance.InjectedInstanceComponentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.test.concepts.typeliterals.TypeLiteralTest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.openwebbeans.se.CDISETest"
+        },
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.openwebbeans.se.CDILauncherTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.VirtualResourceInWebappTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianTrimmedBdaJarDeploymentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianJarDeploymentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianWebJarDeploymentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.VirtualResourceTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianGetResourcesTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianImplicitBdaJarDeploymentTest"
+        },
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "org.apache.webbeans.arquillian.test.OwbArquillianWebInfClassesDeploymentTest"
+        }
+      ]
+    },
+    {
+      "label": "fixed-diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "<workdir>/fixed",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": []
+    },
+    {
+      "label": "portable-weld6",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Pweld",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "portable-weld5",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Pweld",
+        "-Dversion.weld-se=5.1.3.Final",
+        "-Dcdi.api.version=4.0.1",
+        "-Dversion.interceptor-api=2.1.0",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "portable-owb-4.0.0",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dversion.owb=4.0.0",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 1,
+      "expectation": "red-bindings",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 39,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "portable-owb-4.0.1",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dversion.owb=4.0.1",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 1,
+      "expectation": "red-bindings",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 39,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "portable-owb-4.0.2",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dversion.owb=4.0.2",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 1,
+      "expectation": "red-bindings",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 39,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "portable-owb-4.0.3",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dversion.owb=4.0.3",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 1,
+      "expectation": "red-bindings",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 39,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "portable-owb-4.1.0",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dversion.owb=4.1.0",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 1,
+      "expectation": "red-bindings",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 39,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "portable-owb-4.1.1",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dversion.owb=4.1.1",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 1,
+      "expectation": "red-bindings",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 39,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "portable-owb-fixed",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dversion.owb=4.1.2-SNAPSHOT",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer/cdi-isolation",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.InterceptorBindingIsolationTest"
+        },
+        {
+          "tests": 42,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.cdi.BindingGraphTest"
+        }
+      ]
+    },
+    {
+      "label": "retry-weld",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Pweld",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.owb.RetryInterceptorBindingTest"
+        }
+      ]
+    },
+    {
+      "label": "retry-released-discovery",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer",
+      "exit_code": 1,
+      "expectation": "red-deployment",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 1,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.owb.RetryInterceptorBindingTest"
+        }
+      ]
+    },
+    {
+      "label": "retry-released-isolated",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dorg.apache.webbeans.scanBeansXmlOnly=true",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer",
+      "exit_code": 1,
+      "expectation": "red-retry",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.owb.RetryInterceptorBindingTest"
+        }
+      ]
+    },
+    {
+      "label": "retry-fixed-discovery",
+      "command": [
+        "mvn",
+        "-B",
+        "-ntp",
+        "-Dmaven.repo.local=<workdir>/m2",
+        "-Powb",
+        "-Dversion.owb=4.1.2-SNAPSHOT",
+        "test"
+      ],
+      "cwd": "<workdir>/reproducer",
+      "exit_code": 0,
+      "expectation": "pass",
+      "suites": [
+        {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "name": "io.github.telesnascimento.owb.RetryInterceptorBindingTest"
+        }
+      ]
+    }
+  ],
+  "status": "verified",
+  "normalization": "Absolute workspace/source/home paths replaced; XML JVM properties and hostname omitted. Test results unchanged."
+}
